@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#pwd
+cd /hik/home/lichao15/doc/projects/action_recognition
+export PYTHONPATH=`pwd`
+
+python=${HOME}/anaconda3/bin/python
+script=utils/code_example.py
+
+
+# define cluster nodes
+declare -A nodes
+nodes=(['node81']="10.65.223.81" ['node79']="10.65.223.79" ['node107']="10.1.130.107")
+
+used_nodes=("node81" "node79") # the first node as chief node
+num_worker=(2 3)
+ps_device=""
+chief_device=""
+evaluator_device=""
+device_list0=("1" "2")
+device_list1=("5" "3" "4")
+
+chief_node=${used_nodes[0]}
+PS="${nodes[${chief_node}]}:2222"
+CHIEF="${nodes[${chief_node}]}:2223"
+
+#workers
+id=0
+for node_name in ${used_nodes[@]};do
+    port=2230
+    for i in `seq 1 ${num_worker[$id]}`; do
+        WORKER="${WORKER},${nodes[${node_name}]}:${port}"
+        let port=port+1
+    done
+    let id=id+1
+done
+WORKER=${WORKER:1}
+
+export PS
+export CHIEF
+export WORKER
+
+#if [ "${HOSTNAME}" = "${chief_node}" ]; then
+#    ${python} -u ${script} --task_type='ps' --task_index=0 --device_list=${ps_device} >logs/ps.txt 2>&1 &
+#    ${python} -u ${script} --task_type='chief' --task_index=0 --device_list=${chief_device} >logs/chief.txt 2>&1 &
+#    ${python} -u ${script} --task_type='evaluator' --task_index=0 --device_list=${evaluator_device} >logs/evaluator.txt 2>&1 &
+#fi
+
+task_index=0
+idx=0
+for node_name in ${used_nodes[@]}; do
+    device_name="device_list${idx}[@]"
+    echo ${device_name}
+    devices=${!device_name}
+    echo ${devices}
+    echo ${devices[0]}
+#    echo ${devices[1]}
+    if [ "${HOSTNAME}" = "${used_nodes[idx]}" ]; then
+        id=0
+        for i in `seq 1 ${num_worker[idx]}`; do
+#            ${python} -u ${script} --task_type='worker' --task_index=${task_index} --device_list=${devices[id]} \
+#             >logs/worker${task_index}.txt 2>&1 &
+#             echo "task_idx: ${task_index}"
+#             echo "device:${devices[id]}"
+            let task_index=task_index+1
+            let id=id+1
+        done
+    else
+        let task_index=task_index+${num_worker[idx]}
+    fi
+    let idx=idx+1
+done
